@@ -17,6 +17,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+fs = require 'fs'
+path = require 'path'
+
 vows = require 'vows'
 assert = require 'assert'
 
@@ -90,6 +93,51 @@ vows
               topic: (app, web) ->
                 callback = @callback
                 url = 'http://localhost:1623/foo'
+                web.get url, (err, res, body) ->
+                  if err
+                    callback err, null, null
+                  else
+                    callback null, res, body
+                undefined
+              'it works': (err, res, body) ->
+                assert.ifError err
+                assert.isObject res
+                assert.isString body
+              'and we check the response':
+                topic: (res) ->
+                  res
+                'it has a statusCode': (res) ->
+                  assert.isNumber res.statusCode
+                  assert.equal res.statusCode, 200
+          'and we set up an https server':
+            topic: (web) ->
+              callback = @callback
+              options =
+                key: fs.readFileSync(path.join(__dirname, 'data', 'localhost.key'))
+                cert: fs.readFileSync(path.join(__dirname, 'data', 'localhost.crt'))
+              app = new HTTPServer(options)
+              app.start 2342, (err) ->
+                if err
+                  callback err
+                else
+                  callback null, app
+              undefined
+            'it works': (err, app) ->
+              assert.ifError err
+              assert.isObject app
+              return
+            'teardown': (app) ->
+              callback = @callback
+              if app and app.stop
+                app.stop (err) ->
+                  callback null
+              else
+                callback null
+              undefined
+            'and we make a get request':
+              topic: (app, web) ->
+                callback = @callback
+                url = 'https://localhost:2342/foo'
                 web.get url, (err, res, body) ->
                   if err
                     callback err, null, null
