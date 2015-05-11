@@ -28,7 +28,7 @@ class ClientError extends Error
     @message = "Client error #{@statusCode}"
 
 class ServerError extends Error
-  constructor: (@statusCode, @body, @headers) ->
+  constructor: (@statusCode, @headers, @body) ->
     @message = "Server error #{@statusCode}"
 
 web = (verb, url, headers, reqBody, callback) ->
@@ -80,9 +80,9 @@ web = (verb, url, headers, reqBody, callback) ->
         callback err, null, null
       res.on 'end', ->
         if res.statusCode >= 400 && res.statusCode < 500
-          callback new ClientError(res.statusCode, res.headers, body)
+          callback new ClientError(res.statusCode, res.headers, resBody)
         else if res.statusCode >= 500 && res.statusCode < 600
-          callback new ServerError(res.statusCode, res.headers, body)
+          callback new ServerError(res.statusCode, res.headers, resBody)
         else
           callback null, res, resBody
 
