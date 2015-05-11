@@ -51,46 +51,59 @@ vows
           assert.isFunction web.start
         'it has a stop method': (web) ->
           assert.isFunction web.stop
-        'and we set up an http server':
+        'and we start the module':
           topic: (web) ->
             callback = @callback
-            app = new HTTPServer()
-            app.start 1623, (err) ->
-              if err
-                callback err
-              else
-                callback null, app
+            try
+              web.start()
+              callback null, web
+            catch err
+              callback err, null
             undefined
-          'it works': (err, app) ->
+          'it works': (err, web) ->
             assert.ifError err
-            assert.isObject app
-            return
-          'teardown': (app) ->
-            callback = @callback
-            if app and app.stop
-              app.stop (err) ->
-                callback null
-            else
-              callback null
-            undefined
-          'and we make a get request':
-            topic: (app, web) ->
+          'teardown': (web) ->
+            web.stop()
+          'and we set up an http server':
+            topic: (web) ->
               callback = @callback
-              url = 'http://localhost:1623/foo'
-              web.get url, (err, res, body) ->
+              app = new HTTPServer()
+              app.start 1623, (err) ->
                 if err
-                  callback err, null, null
+                  callback err
                 else
-                  callback null, res, body
+                  callback null, app
               undefined
-            'it works': (err, res, body) ->
+            'it works': (err, app) ->
               assert.ifError err
-              assert.isObject res
-              assert.isString body
-            'and we check the response':
-              topic: (res) ->
-                res
-              'it has a statusCode': (res) ->
-                assert.isNumber res.statusCode
-                assert.equal res.statusCode, 200
+              assert.isObject app
+              return
+            'teardown': (app) ->
+              callback = @callback
+              if app and app.stop
+                app.stop (err) ->
+                  callback null
+              else
+                callback null
+              undefined
+            'and we make a get request':
+              topic: (app, web) ->
+                callback = @callback
+                url = 'http://localhost:1623/foo'
+                web.get url, (err, res, body) ->
+                  if err
+                    callback err, null, null
+                  else
+                    callback null, res, body
+                undefined
+              'it works': (err, res, body) ->
+                assert.ifError err
+                assert.isObject res
+                assert.isString body
+              'and we check the response':
+                topic: (res) ->
+                  res
+                'it has a statusCode': (res) ->
+                  assert.isNumber res.statusCode
+                  assert.equal res.statusCode, 200
   .export module

@@ -116,7 +116,8 @@ start = (options) ->
 stop = () ->
   for protocol in ['http:', 'https:']
     if agent[protocol]
-      agent[protocol].destroy()
+      if agent[protocol].destroy
+        agent[protocol].destroy()
       delete agent[protocol]
 
 module.exports =
