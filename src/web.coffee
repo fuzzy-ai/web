@@ -110,8 +110,10 @@ del = (url, headers, callback) ->
   web "DELETE", url, headers, callback
 
 start = (options) ->
-  agent['http:'] = new http.Agent options
-  agent['https:'] = new https.Agent options
+  if !agent['http:']
+    agent['http:'] = new http.Agent options
+  if !agent['https:']
+    agent['https:'] = new https.Agent options
 
 stop = () ->
   for protocol in ['http:', 'https:']
