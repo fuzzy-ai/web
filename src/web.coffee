@@ -1,4 +1,4 @@
-# web.js
+# web.coffee
 #
 # Wrap http/https requests in a callback interface
 #
@@ -22,6 +22,14 @@ http = require('http')
 https = require('https')
 
 agent = {}
+
+class ClientError extends Error
+  constructor: (@statusCode, @headers, @body) ->
+    @message = "Client error #{@statusCode}"
+
+class ServerError extends Error
+  constructor: (@statusCode, @body, @headers) ->
+    @message = "Server error #{@statusCode}"
 
 web = (verb, url, headers, reqBody, callback) ->
 
@@ -69,9 +77,14 @@ web = (verb, url, headers, reqBody, callback) ->
       res.on 'data', (chunk) ->
         resBody = resBody + chunk
       res.on 'error', (err) ->
-        callback err, null
+        callback err, null, null
       res.on 'end', ->
-        callback null, res, resBody
+        if res.statusCode >= 400 && res.statusCode < 500
+          callback new ClientError(res.statusCode, res.headers, body)
+        else if res.statusCode >= 500 && res.statusCode < 600
+          callback new ServerError(res.statusCode, res.headers, body)
+        else
+          callback null, res, resBody
 
     req.on 'error', (err) ->
       callback err, null
@@ -102,9 +115,9 @@ start = (options) ->
 
 stop = () ->
   for protocol in ['http:', 'https:']
-  if agent[protocol]
-    agent[protocol].destroy()
-    delete agent[protocol]
+    if agent[protocol]
+      agent[protocol].destroy()
+      delete agent[protocol]
 
 module.exports =
   web: web
