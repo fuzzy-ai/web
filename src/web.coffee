@@ -114,6 +114,8 @@ start = (options) ->
     agent['http:'] = new http.Agent options
   if !agent['https:']
     agent['https:'] = new https.Agent options
+  agent['http:'].maxSockets = Infinity
+  agent['https:'].maxSockets = Infinity
 
 stop = () ->
   for protocol in ['http:', 'https:']
