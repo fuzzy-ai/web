@@ -24,12 +24,12 @@ https = require('https')
 agent = {}
 
 class ClientError extends Error
-  constructor: (@statusCode, @headers, @body) ->
-    @message = "Client error #{@statusCode}"
+  constructor: (@url, @verb, @statusCode, @headers, @body) ->
+    @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{http.STATUS_CODES[@statusCode]} client error"
 
 class ServerError extends Error
-  constructor: (@statusCode, @headers, @body) ->
-    @message = "Server error #{@statusCode}"
+  constructor: (@url, @verb, @statusCode, @headers, @body) ->
+    @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{http.STATUS_CODES[@statusCode]} server error"
 
 web = (verb, url, headers, reqBody, callback) ->
 
@@ -80,9 +80,9 @@ web = (verb, url, headers, reqBody, callback) ->
         callback err, null, null
       res.on 'end', ->
         if res.statusCode >= 400 && res.statusCode < 500
-          callback new ClientError(res.statusCode, res.headers, resBody)
+          callback new ClientError(url, verb, res.statusCode, res.headers, resBody)
         else if res.statusCode >= 500 && res.statusCode < 600
-          callback new ServerError(res.statusCode, res.headers, resBody)
+          callback new ServerError(url, verb, res.statusCode, res.headers, resBody)
         else
           callback null, res, resBody
 
@@ -133,3 +133,5 @@ module.exports =
   del: del
   start: start
   stop: stop
+  ClientError: ClientError
+  ServerError: ServerError

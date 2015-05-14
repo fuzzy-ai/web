@@ -109,6 +109,34 @@ vows
                 'it has a statusCode': (res) ->
                   assert.isNumber res.statusCode
                   assert.equal res.statusCode, 200
+            'and we make a get request with a client error':
+              topic: (app, web) ->
+                callback = @callback
+                url = 'http://localhost:1623/error/404'
+                web.get url, (err, res, body) ->
+                  if err && err.statusCode != 404
+                    callback err
+                  else if !err
+                    callback new Error("Unexpected success")
+                  else
+                    callback null
+                undefined
+              'it works': (err) ->
+                assert.ifError err
+            'and we make a get request with a client error':
+              topic: (app, web) ->
+                callback = @callback
+                url = 'http://localhost:1623/error/503'
+                web.get url, (err, res, body) ->
+                  if err && err.statusCode != 503
+                    callback err
+                  else if !err
+                    callback new Error("Unexpected success")
+                  else
+                    callback null
+                undefined
+            'it works': (err) ->
+              assert.ifError err
           'and we set up an https server':
             topic: (web) ->
               callback = @callback

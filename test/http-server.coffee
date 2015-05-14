@@ -41,6 +41,10 @@ class HTTPServer extends events.EventEmitter
       request.on "end", () ->
         request.body = body
         self.emit "request", request
+        rel = request.url.slice(1)
+        if rel.match /error\/\d+/
+          statusCode = parseInt(rel.slice(6), 10)
+          respond statusCode, {status: http.STATUS_CODES[statusCode]}
         respond 200, {status: "OK"}
 
     @start = (port, callback) ->
