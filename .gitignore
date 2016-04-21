@@ -21,3 +21,5 @@ lib/*.map
 test/*.js
 test/*.js
 src/*.js
+
+*~
