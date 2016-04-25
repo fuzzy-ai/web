@@ -25,74 +25,79 @@ agent = {}
 
 class ClientError extends Error
   constructor: (@url, @verb, @statusCode, @headers, @body) ->
-    @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{http.STATUS_CODES[@statusCode]} client error"
+    @name = "ClientError"
+    text = http.STATUS_CODES[@statusCode]
+    @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{text}"
 
 class ServerError extends Error
   constructor: (@url, @verb, @statusCode, @headers, @body) ->
-    @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{http.STATUS_CODES[@statusCode]} server error"
+    @name = "ServerError"
+    text = http.STATUS_CODES[@statusCode]
+    @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{text}"
 
 web = (verb, url, headers, reqBody, callback) ->
 
-    # Optional body
+  # Optional body
 
-    if !callback
-      callback = reqBody
-      reqBody = null
+  if !callback
+    callback = reqBody
+    reqBody = null
 
-    # Optional headers
+  # Optional headers
 
-    if !callback
-      callback = headers
-      headers = {}
+  if !callback
+    callback = headers
+    headers = {}
 
-    parts = urlparse url
+  parts = urlparse url
 
-    if parts.protocol == 'http:'
-      mod = http
-    else if parts.protocol == 'https:'
-      mod = https
-    else
-      callback new Error("Unsupported protocol: #{parts.protocol}")
+  if parts.protocol == 'http:'
+    mod = http
+  else if parts.protocol == 'https:'
+    mod = https
+  else
+    callback new Error("Unsupported protocol: #{parts.protocol}")
 
-    options =
-      host: parts.hostname
-      port: parts.port
-      path: parts.path
-      method: verb.toUpperCase()
-      headers: headers
+  options =
+    host: parts.hostname
+    port: parts.port
+    path: parts.path
+    method: verb.toUpperCase()
+    headers: headers
 
-    if agent[parts.protocol]
-      options.agent = agent[parts.protocol]
-    else
-      options.agent = false
+  if agent[parts.protocol]
+    options.agent = agent[parts.protocol]
+  else
+    options.agent = false
 
-    # Add Content-Length if necessary
+  # Add Content-Length if necessary
 
-    if reqBody and !headers["Content-Length"]?
-      headers["Content-Length"] = Buffer.byteLength reqBody
+  if reqBody and !headers["Content-Length"]?
+    headers["Content-Length"] = Buffer.byteLength reqBody
 
-    req = mod.request options, (res) ->
-      resBody = ''
-      res.setEncoding 'utf8'
-      res.on 'data', (chunk) ->
-        resBody = resBody + chunk
-      res.on 'error', (err) ->
-        callback err, null, null
-      res.on 'end', ->
-        if res.statusCode >= 400 && res.statusCode < 500
-          callback new ClientError(url, verb, res.statusCode, res.headers, resBody)
-        else if res.statusCode >= 500 && res.statusCode < 600
-          callback new ServerError(url, verb, res.statusCode, res.headers, resBody)
-        else
-          callback null, res, resBody
+  req = mod.request options, (res) ->
+    resBody = ''
+    res.setEncoding 'utf8'
+    res.on 'data', (chunk) ->
+      resBody = resBody + chunk
+    res.on 'error', (err) ->
+      callback err, null, null
+    res.on 'end', ->
+      code = res.statusCode
+      if code >= 400 && code < 500
+        callback new ClientError(url, verb, code, res.headers, resBody)
+      else if code >= 500 && code < 600
+        callback new ServerError(url, verb, code, res.headers, resBody)
+      else
+        callback null, res, resBody
 
-    req.on 'error', (err) ->
-      callback err, null
+  req.on 'error', (err) ->
+    callback err, null
 
-    if reqBody
-      req.write reqBody
+  if reqBody
+    req.write reqBody
 
-    req.end()
+  req.end()
 
 get = (url, headers, callback) ->
   web "GET", url, headers, callback
@@ -117,7 +122,7 @@ start = (options) ->
   agent['http:'].maxSockets = Infinity
   agent['https:'].maxSockets = Infinity
 
-stop = () ->
+stop = ->
   for protocol in ['http:', 'https:']
     if agent[protocol]
       if agent[protocol].destroy

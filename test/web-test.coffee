@@ -68,27 +68,22 @@ vows
           'teardown': (web) ->
             web.stop()
           'and we set up an http server':
-            topic: (web) ->
+            topic: ->
               callback = @callback
-              app = new HTTPServer()
-              app.start 1623, (err) ->
-                if err
-                  callback err
-                else
-                  callback null, app
+              try
+                app = new HTTPServer()
+                app.start 1623, (err) ->
+                  if err
+                    callback err
+                  else
+                    callback null, app
+              catch err
+                callback err
               undefined
             'it works': (err, app) ->
               assert.ifError err
               assert.isObject app
               return
-            'teardown': (app) ->
-              callback = @callback
-              if app and app.stop
-                app.stop (err) ->
-                  callback null
-              else
-                callback null
-              undefined
             'and we make a get request':
               topic: (app, web) ->
                 callback = @callback
@@ -138,11 +133,14 @@ vows
             'it works': (err) ->
               assert.ifError err
           'and we set up an https server':
-            topic: (web) ->
+            topic: ->
               callback = @callback
+              df = (rel) ->
+                path.join(__dirname, 'data', rel)
+
               options =
-                key: fs.readFileSync(path.join(__dirname, 'data', 'localhost.key'))
-                cert: fs.readFileSync(path.join(__dirname, 'data', 'localhost.crt'))
+                key: fs.readFileSync(df('localhost.key'))
+                cert: fs.readFileSync(df('localhost.crt'))
               app = new HTTPServer(options)
               app.start 2342, (err) ->
                 if err

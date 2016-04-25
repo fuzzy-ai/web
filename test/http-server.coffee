@@ -1,4 +1,4 @@
-# httpserver.coffee -- mock interface for testing the fuzzy.io web interface
+# HTTPServer.coffee -- mock interface for testing the fuzzy.io web interface
 #
 # Copyright 2014 fuzzy.io https://fuzzy.io/
 #
@@ -21,11 +21,10 @@ events = require 'events'
 JSON_TYPE = 'application/json; charset=utf8'
 
 class HTTPServer extends events.EventEmitter
+
   constructor: (options) ->
 
     self = @
-    server = null
-    mod = null
 
     handler = (request, response) ->
       body = ""
@@ -38,7 +37,7 @@ class HTTPServer extends events.EventEmitter
         body += chunk
       request.on "error", (err) ->
         respond 500, {status: "error", message: err.message}
-      request.on "end", () ->
+      request.on "end", ->
         request.body = body
         self.emit "request", request
         rel = request.url.slice(1)
@@ -47,23 +46,59 @@ class HTTPServer extends events.EventEmitter
           respond statusCode, {status: http.STATUS_CODES[statusCode]}
         respond 200, {status: "OK"}
 
-    @start = (port, callback) ->
-      server.once 'error', (err) ->
-        callback err
-      server.once 'listening', () ->
-        callback null
-      server.listen port
-
-    @stop = (callback) ->
-      server.once 'close', () ->
-        callback null
-      server.once 'error', (err) ->
-        callback err
-      server.close()
-
     if options
-      server = https.createServer options, handler
+      @server = https.createServer options, handler
     else
-      server = http.createServer handler
+      @server = http.createServer handler
+
+  start: (port, callback) ->
+
+    onError = (err) ->
+      callback err
+
+    onListening = ->
+      callback null
+
+    clearListeners = =>
+      @server.removeListener 'error', onError
+      @server.removeListener 'listening', onListening
+
+    @server.on 'error', (err) ->
+      clearListeners()
+      callback err
+
+    @server.on 'listening', =>
+      clearListeners()
+      @started = true
+      callback null
+
+    @server.listen port
+
+  stop: (callback) ->
+
+    onError = (err) ->
+      callback err
+
+    onClose = ->
+      callback null
+
+    clearListeners = =>
+      @server.removeListener 'error', onError
+      @server.removeListener 'close', onClose
+
+    @server.on 'error', (err) ->
+      clearListeners()
+      callback err
+
+    @server.on 'close', =>
+      clearListeners()
+      @started = false
+      callback null
+
+    @server.close()
+
+  toString: ->
+    console.trace()
+    "[HTTPServer (started=#{@started})]"
 
 module.exports = HTTPServer
