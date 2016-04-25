@@ -65,5 +65,5 @@ task 'test', 'Run tests', ->
           head = list.shift()
           cmd "vows #{head}", ->
             doNext list, callback
-      doNext files, () ->
+      doNext files, ->
         a = a
