@@ -18,10 +18,19 @@
 # limitations under the License.
 
 urlparse = require('url').parse
-http = require('http')
-https = require('https')
+http = require 'http'
+https = require 'https'
+dns = require 'dns'
+net = require 'net'
+tls = require 'tls'
+
+debug = require('debug')('fuzzy.io-web')
+async = require 'async'
+_ = require 'lodash'
 
 agent = {}
+
+roundRobinConnection = null
 
 class ClientError extends Error
   constructor: (@url, @verb, @statusCode, @headers, @body) ->
@@ -67,13 +76,16 @@ web = (verb, url, headers, reqBody, callback) ->
 
   if agent[parts.protocol]
     options.agent = agent[parts.protocol]
-  else
-    options.agent = false
+
+  if parts.protocol == "http:"
+    options.createConnection = roundRobinConnection
 
   # Add Content-Length if necessary
 
   if reqBody and !headers["Content-Length"]?
     headers["Content-Length"] = Buffer.byteLength reqBody
+
+  debug require('util').inspect(options)
 
   req = mod.request options, (res) ->
     resBody = ''
@@ -117,6 +129,7 @@ del = (url, headers, callback) ->
 start = (options) ->
   if !agent['http:']
     agent['http:'] = new http.Agent options
+    agent['http:'].createConnection = roundRobinConnection
   if !agent['https:']
     agent['https:'] = new https.Agent options
   agent['http:'].maxSockets = Infinity
@@ -128,6 +141,55 @@ stop = ->
       if agent[protocol].destroy
         agent[protocol].destroy()
       delete agent[protocol]
+
+roundRobinConnection = (options, callback) ->
+
+  debug "In roundRobinConnection()"
+  debug require('util').inspect(options)
+
+  async.waterfall [
+    (callback) ->
+      # Get all addresses
+      dns.lookup options.host, {all: true}, callback
+    (addresses, callback) ->
+
+      debug require('util').inspect(addresses)
+
+      connection = null
+      lastError = null
+
+      canConnect = (address, callback) ->
+
+        coptions =
+          host: address.address
+          port: options.port
+          family: address.family
+
+        onConnect = ->
+          clearListeners()
+          connection = socket
+          callback true
+
+        onError = (err) ->
+          clearListeners()
+          lastError = err
+          callback false
+
+        clearListeners = ->
+          socket.removeListener 'connect', onConnect
+          socket.removeListener 'error', onError
+
+        socket = net.createConnection coptions
+
+        socket.on 'connect', onConnect
+        socket.on 'error', onError
+
+      async.detectSeries _.shuffle(addresses), canConnect, (addr) ->
+        if addr?
+          callback null, connection
+        else
+          callback lastError
+  ], callback
 
 module.exports =
   web: web
