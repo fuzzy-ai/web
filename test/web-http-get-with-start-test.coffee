@@ -21,6 +21,7 @@ http = require 'http'
 
 vows = require 'vows'
 assert = require 'assert'
+debug = require('debug')('web:web-http-get-with-start-test')
 
 web = require '../lib/web'
 webBatch = require './web-batch'
@@ -35,7 +36,7 @@ vows
     'and we start the web module':
       topic: ->
         try
-          web.start()
+          web.start({keepAlive: true})
           @callback null
         catch err
           @callback err
@@ -45,19 +46,24 @@ vows
       'teardown': ->
         web.stop()
       'and we make a get request':
-        topic: ->
+        topic: (app1, app2) ->
           callback = @callback
           url = 'http://localhost:1623/foo'
+          headers = null
+          app2.server.on 'request', (req, res) ->
+            headers = req.headers
           web.get url, (err, res, body) ->
             if err
               callback err, null, null
             else
-              callback null, res, body
+              callback null, res, body, headers
           undefined
-        'it works': (err, res, body) ->
+        'it works': (err, res, body, headers) ->
           assert.ifError err
           assert.isObject res
           assert.isString body
+          assert.isObject headers
+          assert.notEqual headers.connection, "close"
         'and we check the response':
           topic: (res) ->
             res
