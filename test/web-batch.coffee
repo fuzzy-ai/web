@@ -55,17 +55,21 @@ webBatch = (rest) ->
         if err
           @callback err
         else
-          @callback null, [app1, app2]
+          @callback null, app1, app2
 
       undefined
 
-    teardown: (servers) ->
+    'it works': (err, app1, app2) ->
+      assert.ifError err
+      assert.isObject app1
+      assert.isObject app2
+    teardown: (app1, app2) ->
       callback = @callback
       async.parallel [
         (callback) ->
-          servers[0].stop callback
+          app1.stop callback
         (callback) ->
-          servers[1].stop callback
+          app2.stop callback
       ], (err) ->
         callback null
 
