@@ -41,29 +41,62 @@ class ServerError extends Error
 
 class WebClient
 
-  constructor: ->
+  constructor: (@timeout = 1000) ->
 
     @_agent = {}
+    @_tid = {}
 
-  start: (options) ->
+  start: (options) =>
 
-    if !options?
+    a1 = @_getAgent 'http:'
+    a2 = @_getAgent 'https:'
+
+  stop: =>
+
+    cleanup = (protocol) =>
+      if @_tid[protocol]
+        clearTimeout @_tid[protocol]
+        @_tid[protocol] = undefined
+      if @_agent[protocol]
+        @_agent[protocol].destroy()
+        @_agent[protocol] = undefined
+
+    cleanup 'http:'
+    cleanup 'https:'
+
+  _getAgent: (protocol) =>
+
+    if !@_agent[protocol]
+
       options =
         keepAlive: true
         maxSockets: Infinity
 
-    @_agent['http:'] = new http.Agent options
-    @_agent['https:'] = new https.Agent options
+      if protocol == 'http:'
+        agent = new http.Agent options
+        agent.createConnection = @_roundRobinConnection
+      else if protocol == 'https:'
+        agent = new https.Agent options
+      else
+        throw new Error("Unknown protocol #{protocol}")
 
-    @_agent['http:'].createConnection = @_roundRobinConnection
+      @_agent[protocol] = agent
 
-  stop: ->
+    @_setTimer protocol
+    @_agent[protocol]
 
-    if @_agent['http:']
-      @_agent['http:'].destroy()
+  _setTimer: (protocol) =>
 
-    if @_agent['https:']
-      @_agent['https:'].destroy()
+    destroyAgent = =>
+      if @_agent[protocol]?
+        @_agent[protocol].destroy()
+        @_agent[protocol] = undefined
+
+    if @_tid[protocol]
+      clearTimeout @_tid[protocol]
+      @_tid[protocol] = undefined
+
+    @_tid[protocol] = setTimeout destroyAgent, @timeout
 
   request: (verb, url, headers, reqBody, callback) =>
 
@@ -95,10 +128,7 @@ class WebClient
       method: verb.toUpperCase()
       headers: headers
 
-    # debug @_agent
-
-    if @_agent[parts.protocol]
-      options.agent = @_agent[parts.protocol]
+    options.agent = @_getAgent parts.protocol
 
     if parts.protocol == "http:"
       options.createConnection = @_roundRobinConnection
