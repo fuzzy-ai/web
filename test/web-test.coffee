@@ -23,13 +23,13 @@ path = require 'path'
 vows = require 'vows'
 assert = require 'assert'
 
-HTTPServer = require './http-server'
+webBatch = require './web-batch'
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 vows
   .describe('web module interface')
-  .addBatch
+  .addBatch webBatch
     'When we require the web module':
       topic: ->
         require '../lib/web'
@@ -67,52 +67,24 @@ vows
             assert.ifError err
           'teardown': (web) ->
             web.stop()
-          'and we set up an https server':
-            topic: ->
+          'and we make a get request':
+            topic: (web) ->
               callback = @callback
-              df = (rel) ->
-                path.join(__dirname, 'data', rel)
-
-              options =
-                key: fs.readFileSync(df('localhost.key'))
-                cert: fs.readFileSync(df('localhost.crt'))
-              app = new HTTPServer(options)
-              app.start 2342, (err) ->
+              url = 'https://localhost:2342/foo'
+              web.get url, (err, res, body) ->
                 if err
-                  callback err
+                  callback err, null, null
                 else
-                  callback null, app
+                  callback null, res, body
               undefined
-            'it works': (err, app) ->
+            'it works': (err, res, body) ->
               assert.ifError err
-              assert.isObject app
-              return
-            'teardown': (app) ->
-              callback = @callback
-              if app and app.stop
-                app.stop (err) ->
-                  callback null
-              else
-                callback null
-              undefined
-            'and we make a get request':
-              topic: (app, web) ->
-                callback = @callback
-                url = 'https://localhost:2342/foo'
-                web.get url, (err, res, body) ->
-                  if err
-                    callback err, null, null
-                  else
-                    callback null, res, body
-                undefined
-              'it works': (err, res, body) ->
-                assert.ifError err
-                assert.isObject res
-                assert.isString body
-              'and we check the response':
-                topic: (res) ->
-                  res
-                'it has a statusCode': (res) ->
-                  assert.isNumber res.statusCode
-                  assert.equal res.statusCode, 200
+              assert.isObject res
+              assert.isString body
+            'and we check the response':
+              topic: (res) ->
+                res
+              'it has a statusCode': (res) ->
+                assert.isNumber res.statusCode
+                assert.equal res.statusCode, 200
   .export module

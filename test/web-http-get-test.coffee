@@ -21,89 +21,69 @@ http = require 'http'
 
 vows = require 'vows'
 assert = require 'assert'
+debug = require('debug')('web:web-http-get-test')
 
 web = require '../lib/web'
+webBatch = require './web-batch'
 
 process.on 'uncaughtException', (err) ->
   console.dir err.stack.split("\n")
   process.exit -1
 
-hack = null
-
 vows
   .describe('GET over HTTP')
-  .addBatch
-    'When we set up an http server':
+  .addBatch webBatch
+    'and we make a get request':
       topic: ->
         callback = @callback
-        srv = http.createServer (req, res) ->
-          rel = req.url.slice(1)
-          if rel.match /error\/\d+/
-            statusCode = parseInt(rel.slice(6), 10)
-            res.writeHead statusCode,
-              'Content-Type': 'text/plain'
-              'Content-Length': '0'
-            res.end()
+        debug "Starting GET request"
+        url = 'http://localhost:1623/foo'
+        debug "Getting #{url}"
+        web.get url, (err, res, body) ->
+          if err
+            debug "Error getting #{url}: #{err}"
+            callback err, null, null
           else
-            res.writeHead 200,
-              'Content-Type': 'text/plain'
-              'Content-Length': '0'
-            res.end()
-        srv.listen 1623, ->
-          hack = srv
-          callback null
+            debug "Success getting #{url}"
+            callback null, res, body
+        undefined
+      'it works': (err, res, body) ->
+        assert.ifError err
+        assert.isObject res
+        assert.isString body
+      'and we check the response':
+        topic: (res) ->
+          @callback null, res
+          undefined
+        'it has a statusCode': (err, res) ->
+          assert.isNumber res.statusCode
+          assert.equal res.statusCode, 200
+    'and we make a get request with a client error':
+      topic: ->
+        callback = @callback
+        url = 'http://localhost:1623/error/404'
+        web.get url, (err, res, body) ->
+          if err && err.statusCode != 404
+            callback err
+          else if !err
+            callback new Error("Unexpected success")
+          else
+            callback null
         undefined
       'it works': (err) ->
         assert.ifError err
-      'teardown': ->
-        if hack? && hack.close?
-          hack.close()
-      'and we make a get request':
-        topic: ->
-          callback = @callback
-          url = 'http://localhost:1623/foo'
-          web.get url, (err, res, body) ->
-            if err
-              callback err, null, null
-            else
-              callback null, res, body
-          undefined
-        'it works': (err, res, body) ->
-          assert.ifError err
-          assert.isObject res
-          assert.isString body
-        'and we check the response':
-          topic: (res) ->
-            res
-          'it has a statusCode': (res) ->
-            assert.isNumber res.statusCode
-            assert.equal res.statusCode, 200
-      'and we make a get request with a client error':
-        topic: ->
-          callback = @callback
-          url = 'http://localhost:1623/error/404'
-          web.get url, (err, res, body) ->
-            if err && err.statusCode != 404
-              callback err
-            else if !err
-              callback new Error("Unexpected success")
-            else
-              callback null
-          undefined
-        'it works': (err) ->
-          assert.ifError err
-      'and we make a get request with a server error':
-        topic: ->
-          callback = @callback
-          url = 'http://localhost:1623/error/503'
-          web.get url, (err, res, body) ->
-            if err && err.statusCode != 503
-              callback err
-            else if !err
-              callback new Error("Unexpected success")
-            else
-              callback null
-          undefined
+    'and we make a get request with a server error':
+      topic: ->
+        callback = @callback
+        url = 'http://localhost:1623/error/503'
+        web.get url, (err, res, body) ->
+          if err && err.statusCode != 503
+            callback err
+          else if !err
+            callback new Error("Unexpected success")
+          else
+            callback null
+        undefined
       'it works': (err) ->
         assert.ifError err
   .export module

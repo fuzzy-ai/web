@@ -16,63 +16,37 @@
 
 http = require 'http'
 https = require 'https'
-events = require 'events'
 
 JSON_TYPE = 'application/json; charset=utf8'
 
-class HTTPServer extends events.EventEmitter
+class HTTPServer
 
-  constructor: (options) ->
+  constructor: (@port = 80, @options) ->
 
-    self = @
-
-    handler = (request, response) ->
-      body = ""
-      respond = (code, body) ->
-        response.statusCode = code
-        if !response.headersSent
-          response.setHeader "Content-Type", JSON_TYPE
-        response.end(JSON.stringify(body))
-      request.on "data", (chunk) ->
-        body += chunk
-      request.on "error", (err) ->
-        respond 500, {status: "error", message: err.message}
-      request.on "end", ->
-        request.body = body
-        self.emit "request", request
-        rel = request.url.slice(1)
-        if rel.match /error\/\d+/
-          statusCode = parseInt(rel.slice(6), 10)
-          respond statusCode, {status: http.STATUS_CODES[statusCode]}
-        respond 200, {status: "OK"}
-
-    if options
-      @server = https.createServer options, handler
+    if @options
+      @server = https.createServer @options, @_handler
     else
-      @server = http.createServer handler
+      @server = http.createServer @_handler
 
-  start: (port, callback) ->
+  start: (callback) ->
 
     onError = (err) ->
+      clearListeners()
       callback err
 
     onListening = ->
+      clearListeners()
       callback null
 
     clearListeners = =>
       @server.removeListener 'error', onError
       @server.removeListener 'listening', onListening
 
-    @server.on 'error', (err) ->
-      clearListeners()
-      callback err
+    @server.on 'error', onError
 
-    @server.on 'listening', =>
-      clearListeners()
-      @started = true
-      callback null
+    @server.on 'listening', onListening
 
-    @server.listen port
+    @server.listen @port
 
   stop: (callback) ->
 
@@ -98,7 +72,25 @@ class HTTPServer extends events.EventEmitter
     @server.close()
 
   toString: ->
-    console.trace()
-    "[HTTPServer (started=#{@started})]"
+    "[HTTPServer (port=#{@port})]"
+
+  _handler: (request, response) ->
+    body = ""
+    respond = (code, body) ->
+      response.statusCode = code
+      if !response.headersSent
+        response.setHeader "Content-Type", JSON_TYPE
+      response.end(JSON.stringify(body))
+    request.on "data", (chunk) ->
+      body += chunk
+    request.on "error", (err) ->
+      respond 500, {status: "error", message: err.message}
+    request.on "end", ->
+      request.body = body
+      rel = request.url.slice(1)
+      if rel.match /error\/\d+/
+        statusCode = parseInt(rel.slice(6), 10)
+        respond statusCode, {status: http.STATUS_CODES[statusCode]}
+      respond 200, {status: "OK"}
 
 module.exports = HTTPServer
