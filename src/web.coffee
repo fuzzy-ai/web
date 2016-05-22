@@ -22,15 +22,10 @@ http = require 'http'
 https = require 'https'
 dns = require 'dns'
 net = require 'net'
-tls = require 'tls'
 
 debug = require('debug')('fuzzy.io-web')
 async = require 'async'
 _ = require 'lodash'
-
-agent = {}
-
-roundRobinConnection = null
 
 class ClientError extends Error
   constructor: (@url, @verb, @statusCode, @headers, @body) ->
@@ -44,161 +39,176 @@ class ServerError extends Error
     text = http.STATUS_CODES[@statusCode]
     @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{text}"
 
-web = (verb, url, headers, reqBody, callback) ->
+class WebClient
 
-  # Optional body
+  constructor: ->
 
-  if !callback
-    callback = reqBody
-    reqBody = null
+    @_agent = {}
 
-  # Optional headers
+  start: (options) ->
 
-  if !callback
-    callback = headers
-    headers = {}
+    if !options?
+      options =
+        keepAlive: true
+        maxSockets: Infinity
 
-  parts = urlparse url
+    @_agent['http:'] = new http.Agent options
+    @_agent['https:'] = new https.Agent options
 
-  if parts.protocol == 'http:'
-    mod = http
-  else if parts.protocol == 'https:'
-    mod = https
-  else
-    callback new Error("Unsupported protocol: #{parts.protocol}")
+    @_agent['http:'].createConnection = @_roundRobinConnection
 
-  options =
-    host: parts.hostname
-    port: parts.port
-    path: parts.path
-    method: verb.toUpperCase()
-    headers: headers
+  stop: ->
 
-  if agent[parts.protocol]
-    options.agent = agent[parts.protocol]
+    if @_agent['http:']
+      @_agent['http:'].destroy()
 
-  if parts.protocol == "http:"
-    options.createConnection = roundRobinConnection
+    if @_agent['https:']
+      @_agent['https:'].destroy()
 
-  # Add Content-Length if necessary
+  request: (verb, url, headers, reqBody, callback) =>
 
-  if reqBody and !headers["Content-Length"]?
-    headers["Content-Length"] = Buffer.byteLength reqBody
+    # Optional body
 
-  debug require('util').inspect(options)
+    if !callback
+      callback = reqBody
+      reqBody = null
 
-  req = mod.request options, (res) ->
-    resBody = ''
-    res.setEncoding 'utf8'
-    res.on 'data', (chunk) ->
-      resBody = resBody + chunk
-    res.on 'error', (err) ->
-      callback err, null, null
-    res.on 'end', ->
-      code = res.statusCode
-      if code >= 400 && code < 500
-        callback new ClientError(url, verb, code, res.headers, resBody)
-      else if code >= 500 && code < 600
-        callback new ServerError(url, verb, code, res.headers, resBody)
-      else
-        callback null, res, resBody
+    # Optional headers
 
-  req.on 'error', (err) ->
-    callback err, null
+    if !callback
+      callback = headers
+      headers = {}
 
-  if reqBody
-    req.write reqBody
+    parts = urlparse url
 
-  req.end()
+    if parts.protocol == 'http:'
+      mod = http
+    else if parts.protocol == 'https:'
+      mod = https
+    else
+      callback new Error("Unsupported protocol: #{parts.protocol}")
 
-get = (url, headers, callback) ->
-  web "GET", url, headers, callback
+    options =
+      host: parts.hostname
+      port: parts.port
+      path: parts.path
+      method: verb.toUpperCase()
+      headers: headers
 
-post = (url, headers, body, callback) ->
-  web "POST", url, headers, body, callback
+    # debug @_agent
 
-head = (url, headers, callback) ->
-  web "HEAD", url, headers, callback
+    if @_agent[parts.protocol]
+      options.agent = @_agent[parts.protocol]
 
-put = (url, headers, body, callback) ->
-  web "PUT", url, headers, body, callback
+    if parts.protocol == "http:"
+      options.createConnection = @_roundRobinConnection
 
-del = (url, headers, callback) ->
-  web "DELETE", url, headers, callback
+    # Add Content-Length if necessary
 
-start = (options) ->
-  if !agent['http:']
-    agent['http:'] = new http.Agent options
-    agent['http:'].createConnection = roundRobinConnection
-  if !agent['https:']
-    agent['https:'] = new https.Agent options
-  agent['http:'].maxSockets = Infinity
-  agent['https:'].maxSockets = Infinity
+    if reqBody and !headers["Content-Length"]?
+      headers["Content-Length"] = Buffer.byteLength reqBody
 
-stop = ->
-  for protocol in ['http:', 'https:']
-    if agent[protocol]
-      if agent[protocol].destroy
-        agent[protocol].destroy()
-      delete agent[protocol]
-
-roundRobinConnection = (options, callback) ->
-
-  debug "In roundRobinConnection()"
-  debug require('util').inspect(options)
-
-  async.waterfall [
-    (callback) ->
-      # Get all addresses
-      dns.lookup options.host, {all: true}, callback
-    (addresses, callback) ->
-
-      debug require('util').inspect(addresses)
-
-      connection = null
-      lastError = null
-
-      canConnect = (address, callback) ->
-
-        coptions =
-          host: address.address
-          port: options.port
-          family: address.family
-
-        onConnect = ->
-          clearListeners()
-          connection = socket
-          callback true
-
-        onError = (err) ->
-          clearListeners()
-          lastError = err
-          callback false
-
-        clearListeners = ->
-          socket.removeListener 'connect', onConnect
-          socket.removeListener 'error', onError
-
-        socket = net.createConnection coptions
-
-        socket.on 'connect', onConnect
-        socket.on 'error', onError
-
-      async.detectSeries _.shuffle(addresses), canConnect, (addr) ->
-        if addr?
-          callback null, connection
+    req = mod.request options, (res) ->
+      resBody = ''
+      res.setEncoding 'utf8'
+      res.on 'data', (chunk) ->
+        resBody = resBody + chunk
+      res.on 'error', (err) ->
+        callback err, null, null
+      res.on 'end', ->
+        code = res.statusCode
+        if code >= 400 && code < 500
+          callback new ClientError(url, verb, code, res.headers, resBody)
+        else if code >= 500 && code < 600
+          callback new ServerError(url, verb, code, res.headers, resBody)
         else
-          callback lastError
-  ], callback
+          callback null, res, resBody
+
+    req.on 'error', (err) ->
+      callback err, null
+
+    if reqBody
+      req.write reqBody
+
+    req.end()
+
+  get: (url, headers, callback) =>
+    @request "GET", url, headers, callback
+
+  post: (url, headers, body, callback) =>
+    @request "POST", url, headers, body, callback
+
+  head: (url, headers, callback) =>
+    @request "HEAD", url, headers, callback
+
+  put: (url, headers, body, callback) =>
+    @request "PUT", url, headers, body, callback
+
+  patch: (url, headers, body, callback) =>
+    @request "PATCH", url, headers, body, callback
+
+  delete: (url, headers, callback) =>
+    @request "DELETE", url, headers, callback
+
+  _roundRobinConnection: (options, callback) ->
+
+    debug "In _roundRobinConnection()"
+
+    async.waterfall [
+      (callback) ->
+        # Get all addresses
+        dns.lookup options.host, {all: true}, callback
+      (addresses, callback) ->
+
+        debug require('util').inspect(addresses)
+
+        connection = null
+        lastError = null
+
+        canConnect = (address, callback) ->
+
+          coptions =
+            host: address.address
+            port: options.port
+            family: address.family
+
+          onConnect = ->
+            clearListeners()
+            connection = socket
+            callback true
+
+          onError = (err) ->
+            clearListeners()
+            lastError = err
+            callback false
+
+          clearListeners = ->
+            socket.removeListener 'connect', onConnect
+            socket.removeListener 'error', onError
+
+          socket = net.createConnection coptions
+
+          socket.on 'connect', onConnect
+          socket.on 'error', onError
+
+        async.detectSeries _.shuffle(addresses), canConnect, (addr) ->
+          if addr?
+            callback null, connection
+          else
+            callback lastError
+    ], callback
+
+defaultClient = new WebClient()
 
 module.exports =
-  web: web
-  get: get
-  post: post
-  head: head
-  put: put
-  del: del
-  start: start
-  stop: stop
+  web: (args...) -> defaultClient.request args...
+  get: (args...) -> defaultClient.get args...
+  post: (args...) -> defaultClient.post args...
+  head: (args...) -> defaultClient.head args...
+  put: (args...) -> defaultClient.put args...
+  del: (args...) -> defaultClient.delete args...
+  start: (args...) -> defaultClient.start args...
+  stop: (args...) -> defaultClient.stop args...
   ClientError: ClientError
   ServerError: ServerError
+  WebClient: WebClient
