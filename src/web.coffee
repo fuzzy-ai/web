@@ -41,7 +41,7 @@ class ServerError extends Error
     text = http.STATUS_CODES[@statusCode]
     @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{text}"
 
-DEFAULT_TIMEOUT = 1000
+DEFAULT_TIMEOUT = 0
 
 class WebClient
 
