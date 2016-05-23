@@ -40,36 +40,36 @@ webBatch = (rest) ->
       df = (rel) ->
         path.join(__dirname, 'data', rel)
 
-      app1 = new HTTPServer 2342,
+      httpsApp = new HTTPServer 2342,
         key: fs.readFileSync(df('localhost.key'))
         cert: fs.readFileSync(df('localhost.crt'))
 
-      app2 = new HTTPServer 1623
+      httpApp = new HTTPServer 1623
 
       async.parallel [
         (callback) ->
-          app1.start callback
+          httpsApp.start callback
         (callback) ->
-          app2.start callback
+          httpApp.start callback
       ], (err) =>
         if err
           @callback err
         else
-          @callback null, app1, app2
+          @callback null, httpsApp, httpApp
 
       undefined
 
-    'it works': (err, app1, app2) ->
+    'it works': (err, httpsApp, httpApp) ->
       assert.ifError err
-      assert.isObject app1
-      assert.isObject app2
-    teardown: (app1, app2) ->
+      assert.isObject httpsApp
+      assert.isObject httpApp
+    teardown: (httpsApp, httpApp) ->
       callback = @callback
       async.parallel [
         (callback) ->
-          app1.stop callback
+          httpsApp.stop callback
         (callback) ->
-          app2.stop callback
+          httpApp.stop callback
       ], (err) ->
         callback null
 

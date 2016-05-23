@@ -22,8 +22,10 @@ http = require 'http'
 https = require 'https'
 dns = require 'dns'
 net = require 'net'
+assert = require 'assert'
+util = require 'util'
 
-debug = require('debug')('fuzzy.io-web')
+debug = require('debug')('web')
 async = require 'async'
 _ = require 'lodash'
 
@@ -39,9 +41,31 @@ class ServerError extends Error
     text = http.STATUS_CODES[@statusCode]
     @message = "#{@verb} on #{@url} resulted in #{@statusCode} #{text}"
 
+DEFAULT_TIMEOUT = 1000
+
 class WebClient
 
-  constructor: (@timeout = 1000) ->
+  constructor: (args...) ->
+
+    debug "WebClient::constructor(#{util.inspect(args)})"
+
+    if args.length > 0
+      if _.isObject args[0]
+        props = args[0]
+        debug "props = #{util.inspect(props)}"
+        if props.timeout?
+          @timeout = props.timeout
+        else
+          @timeout = DEFAULT_TIMEOUT
+    else if _.isNumber args[0]
+      @timeout = args[0]
+    else
+      @timeout = DEFAULT_TIMEOUT
+
+    debug "@timeout = #{@timeout}"
+
+    assert @timeout == Infinity or (_.isFinite(@timeout) and @timeout >= 0),
+      "Timeout must be either infinity, a positive number, or zero"
 
     @_agent = {}
     @_tid = {}
@@ -69,8 +93,12 @@ class WebClient
     if !@_agent[protocol]
 
       options =
-        keepAlive: true
         maxSockets: Infinity
+
+      # Don't do keepalive if we're going to timeout immediately
+
+      if @timeout > 0
+        options.keepAlive = true
 
       if protocol == 'http:'
         agent = new http.Agent options
@@ -82,10 +110,19 @@ class WebClient
 
       @_agent[protocol] = agent
 
-    @_setTimer protocol
+    # Maybe timeout
+
+    debug "@timeout = #{@timeout}"
+
+    if _.isFinite(@timeout) and @timeout > 0
+      @_setTimer protocol
+
     @_agent[protocol]
 
   _setTimer: (protocol) =>
+
+    assert.ok _.isFinite(@timeout), "Timeout must be finite"
+    assert.ok @timeout > 0, "Timeout must be > 0"
 
     destroyAgent = =>
       if @_agent[protocol]?
