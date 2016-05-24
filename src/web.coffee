@@ -43,6 +43,11 @@ class ServerError extends Error
 
 DEFAULT_TIMEOUT = 0
 
+nv = {}
+[nv.major, nv.minor, nv.patch] =
+  process.version.match(/^v(\d+)\.(\d+)\.(\d+)/).slice(1).map (s) ->
+    parseInt s, 10
+
 class WebClient
 
   constructor: (args...) ->
@@ -102,7 +107,8 @@ class WebClient
 
       if protocol == 'http:'
         agent = new http.Agent options
-        agent.createConnection = @_roundRobinConnection
+        if nv.major > 4
+          agent.createConnection = @_roundRobinConnection
       else if protocol == 'https:'
         agent = new https.Agent options
       else
@@ -168,7 +174,8 @@ class WebClient
     options.agent = @_getAgent parts.protocol
 
     if parts.protocol == "http:"
-      options.createConnection = @_roundRobinConnection
+      if nv.major > 4
+        options.createConnection = @_roundRobinConnection
 
     # Add Content-Length if necessary
 
