@@ -176,20 +176,26 @@ class WebClient
       headers["Content-Length"] = Buffer.byteLength reqBody
 
     req = mod.request options, (res) ->
-      resBody = ''
-      res.setEncoding 'utf8'
-      res.on 'data', (chunk) ->
-        resBody = resBody + chunk
-      res.on 'error', (err) ->
-        callback err, null, null
-      res.on 'end', ->
-        code = res.statusCode
-        if code >= 400 && code < 500
-          callback new ClientError(url, verb, code, res.headers, resBody)
-        else if code >= 500 && code < 600
-          callback new ServerError(url, verb, code, res.headers, resBody)
-        else
-          callback null, res, resBody
+      if !res?
+        callback new Error("No results")
+      else
+        resBody = ''
+        res.setEncoding 'utf8'
+        res.on 'data', (chunk) ->
+          resBody = resBody + chunk
+        res.on 'error', (err) ->
+          callback err, null, null
+        res.on 'end', ->
+          code = res.statusCode
+          if code >= 400 && code < 500
+            callback new ClientError(url, verb, code, res.headers, resBody)
+          else if code >= 500 && code < 600
+            callback new ServerError(url, verb, code, res.headers, resBody)
+          else
+            callback null, res, resBody
+
+    if !req?
+      callback new Error("No request returned")
 
     req.on 'error', (err) ->
       callback err, null
@@ -234,34 +240,60 @@ class WebClient
 
         canConnect = (address, callback) ->
 
+          socket = null
+
           coptions =
             host: address.address
             port: options.port
             family: address.family
 
+          debug coptions
+          debug "Checking connection for #{address}"
+
           onConnect = ->
+            debug "Got connection for #{address}"
             clearListeners()
             connection = socket
+            debug connection
             callback true
 
           onError = (err) ->
             clearListeners()
+            debug "Error getting connection for #{address}"
             lastError = err
+            debug err
             callback false
 
           clearListeners = ->
+            debug "Clearing event listeners"
             socket.removeListener 'connect', onConnect
             socket.removeListener 'error', onError
 
+          debug "Creating socket for #{address}"
+
           socket = net.createConnection coptions
 
-          socket.on 'connect', onConnect
-          socket.on 'error', onError
+          debug "Done creating socket for #{address}"
+
+          if socket?
+            debug "Have a socket"
+            debug socket
+            socket.on 'connect', onConnect
+            socket.on 'error', onError
+          else
+            debug "Got no socket back"
+            callback false
+
+        debug "Checking addresses for connection"
+        debug addresses
 
         async.detectSeries _.shuffle(addresses), canConnect, (addr) ->
+          debug "Finished checking"
           if addr?
+            debug "Got a result for #{addr}; returning connection #{connection}"
             callback null, connection
           else
+            debug "Didn't get a connection; returning error #{lastError}"
             callback lastError
     ], callback
 
