@@ -20,7 +20,8 @@
   },
   "devDependencies": {
     "coffee-script": "^1.10.0",
-    "vows": "^0.8.1"
+    "vows": "^0.8.1",
+    "glob": "^7.0.3"
   },
   "repository": {
     "type": "git",
