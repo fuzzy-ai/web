@@ -68,10 +68,28 @@ vows
           else if !err
             callback new Error("Unexpected success")
           else
-            callback null
+            callback null, err
         undefined
-      'it works': (err) ->
+      'it works': (err, obj) ->
         assert.ifError err
+      'its error is correct': (err, obj) ->
+        assert.ifError err
+        assert.isObject obj
+        assert.isString obj.name
+        assert.equal obj.name, "ClientError"
+        assert.isNumber obj.statusCode
+        assert.equal obj.statusCode, 404
+        assert.isObject obj.headers
+        for name, value of obj.headers
+          assert.isString name
+          assert.isString value
+        assert.isString obj.url
+        assert.equal obj.url, 'http://localhost:1623/error/404'
+        assert.isString obj.verb
+        assert.equal obj.verb, "GET"
+        assert.isString obj.body
+        assert.isString obj.message
+        assert.equal obj.message, "GET on http://localhost:1623/error/404 resulted in 404 Not Found"
     'and we make a get request with a server error':
       topic: ->
         callback = @callback
@@ -82,8 +100,26 @@ vows
           else if !err
             callback new Error("Unexpected success")
           else
-            callback null
+            callback null, err
         undefined
-      'it works': (err) ->
+      'it works': (err, obj) ->
         assert.ifError err
+      'its error is correct': (err, obj) ->
+        assert.ifError err
+        assert.isObject obj
+        assert.isString obj.name
+        assert.equal obj.name, "ServerError"
+        assert.isNumber obj.statusCode
+        assert.equal obj.statusCode, 503
+        assert.isObject obj.headers
+        for name, value of obj.headers
+          assert.isString name
+          assert.isString value
+        assert.isString obj.url
+        assert.equal obj.url, 'http://localhost:1623/error/503'
+        assert.isString obj.verb
+        assert.equal obj.verb, "GET"
+        assert.isString obj.body
+        assert.isString obj.message
+        assert.equal obj.message, "GET on http://localhost:1623/error/503 resulted in 503 Service Unavailable"
   .export module
