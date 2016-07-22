@@ -10,8 +10,7 @@
     "test": "cake test",
     "build": "cake build",
     "prepublish": "cake build",
-    "clean": "cake clean",
-    "install": "mkdir -p lib/ && coffee -b -c -o lib/ src/*.coffee"
+    "clean": "cake clean"
   },
   "dependencies": {
     "lodash": "^4.12.0",
