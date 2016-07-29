@@ -3,7 +3,7 @@
 # Test the web module
 #
 # Copyright 2012, E14N https://e14n.com/
-# Copyright 2014-2015, Fuzzy.io https://fuzzy.io/
+# Copyright 2014-2015, Fuzzy.ai https://fuzzy.ai/
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

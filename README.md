@@ -1,4 +1,4 @@
-fuzzy.io-web
+fuzzy.ai-web
 ============
 
 A Web client library that does about what you'd expect it to. It supports
@@ -24,7 +24,7 @@ Example
 
 ```javascript
 
-var web = require('fuzzy.io-web');
+var web = require('fuzzy.ai-web');
 
 myClient = new web.WebClient({timeout: 5000});
 

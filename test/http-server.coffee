@@ -1,6 +1,6 @@
-# HTTPServer.coffee -- mock interface for testing the fuzzy.io web interface
+# HTTPServer.coffee -- mock interface for testing the fuzzy.ai web interface
 #
-# Copyright 2014 fuzzy.io https://fuzzy.io/
+# Copyright 2014 fuzzy.ai https://fuzzy.ai/
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

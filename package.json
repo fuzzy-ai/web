@@ -1,9 +1,9 @@
 {
-  "name": "fuzzy.io-web",
+  "name": "fuzzy.ai-web",
   "version": "0.5.3",
-  "description": "Simple web client used by fuzzy.io",
-  "homepage": "http://github.com/fuzzy-io/web",
-  "bugs": "https://github.com/fuzzy-io/web/issues",
+  "description": "Simple web client used by fuzzy.ai",
+  "homepage": "http://github.com/fuzzy-ai/web",
+  "bugs": "https://github.com/fuzzy-ai/web/issues",
   "license": "Apache-2.0",
   "main": "lib/web.js",
   "scripts": {
@@ -25,6 +25,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "http://github.com/fuzzy-io/web.git"
+    "url": "http://github.com/fuzzy-ai/web.git"
   }
 }
