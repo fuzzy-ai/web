@@ -91,6 +91,7 @@ class HTTPServer
       if rel.match /error\/\d+/
         statusCode = parseInt(rel.slice(6), 10)
         respond statusCode, {status: http.STATUS_CODES[statusCode]}
-      respond 200, {status: "OK"}
+      else
+        respond 200, {status: "OK"}
 
 module.exports = HTTPServer
