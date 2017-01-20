@@ -1,4 +1,4 @@
-# webclient-with-zero-timeout-test.js
+# webclient-with-zero-timeout-test.coffee
 #
 # Test the WebClient interface with a timeout of 0
 #

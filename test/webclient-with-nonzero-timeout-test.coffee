@@ -1,6 +1,6 @@
-# webclient-with-infinity-timeout-test.js
+# webclient-with-nonzero-timeout-test.coffee
 #
-# Test the WebClient interface with a timeout of Infinity
+# Test the WebClient interface with a nonzero timeout
 #
 # Copyright 2016 Fuzzy.ai https://fuzzy.ai/
 #
