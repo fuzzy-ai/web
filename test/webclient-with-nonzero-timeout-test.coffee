@@ -30,22 +30,22 @@ vows.describe 'WebClient with nonzero timeout test'
         assert.isFunction WebClient
       'and we create an instance':
         topic: (WebClient) ->
-          new WebClient timeout: 60000
+          new WebClient timeout: 3000
         'it works': (client) ->
           assert.isObject client
-        'and we get a resource':
+        'teardown': (client) ->
+          client.stop()
+        'and we get a resource that takes less than the timeout':
           topic: (client, WebClient, httpsApp, httpApp) ->
-            url = 'http://localhost:1623/foo'
+            url = 'http://localhost:1623/wait/2'
             headers = null
             httpApp.server.on 'request', (req, body) ->
               headers = req.headers
-
             client.get url, (err, res, body) =>
               if err
                 @callback err, null, null, null
               else
                 @callback null, res, body, headers
-
             undefined
           'it works': (err, res, body, headers) ->
             assert.ifError err
@@ -54,15 +54,22 @@ vows.describe 'WebClient with nonzero timeout test'
             assert.isObject headers
             assert.isString headers.connection
             assert.notEqual headers.connection, "close"
-          'and we stop the client':
-            topic: (res, body, headers, client) ->
-              try
-                client.stop()
-                @callback null
-              catch err
-                @callback err
-              undefined
-            'it works': (err) ->
-              assert.ifError err
+        'and we get a resource that takes longer than the timeout':
+          topic: (client, WebClient, httpsApp, httpApp) ->
+            url = 'http://localhost:1623/wait/5'
+            headers = null
+            httpApp.server.on 'request', (req, body) ->
+              headers = req.headers
+            start = new Date()
+            client.get url, (err, res, body) =>
+              end = new Date()
+              if err
+                @callback null, end - start
+              else
+                @callback new Error("Unexpected success")
+            undefined
+          'it fails correctly': (err, duration) ->
+            assert.ifError err
+            assert.lesser duration, 4000
 
   .export module

@@ -17,6 +17,8 @@
 http = require 'http'
 https = require 'https'
 
+debug = require('debug')('web:http-server')
+
 JSON_TYPE = 'application/json; charset=utf8'
 
 class HTTPServer
@@ -91,6 +93,13 @@ class HTTPServer
       if rel.match /error\/\d+/
         statusCode = parseInt(rel.slice(6), 10)
         respond statusCode, {status: http.STATUS_CODES[statusCode]}
+      else if rel.match /wait\/\d+/
+        seconds = parseInt(rel.slice(5), 10)
+        debug("Waiting #{seconds} seconds...")
+        handler = ->
+          debug("Done waiting #{seconds} seconds; responding")
+          respond 200, {status: "OK"}
+        setTimeout handler, seconds * 1000
       else
         respond 200, {status: "OK"}
 
