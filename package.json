@@ -1,6 +1,6 @@
 {
   "name": "fuzzy.ai-web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Simple web client used by fuzzy.ai",
   "homepage": "http://github.com/fuzzy-ai/web",
   "bugs": "https://github.com/fuzzy-ai/web/issues",
