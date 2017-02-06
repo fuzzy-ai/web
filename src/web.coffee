@@ -43,10 +43,13 @@ class ServerError extends Error
 
 DEFAULT_TIMEOUT = 0
 
-nv = {}
-[nv.major, nv.minor, nv.patch] =
-  process.version.match(/^v(\d+)\.(\d+)\.(\d+)/).slice(1).map (s) ->
-    parseInt s, 10
+nv = {major: 0, minor: 0, patch: 0}
+
+if process.version? # This would be very unusual!
+  match = process.version.match(/^v(\d+)\.(\d+)\.(\d+)/)
+  if Array.isArray(match)
+    numbers = match.slice(1, 4)
+    [nv.major, nv.minor, nv.patch] = numbers.map (s) -> parseInt s, 10
 
 class WebClient
 
